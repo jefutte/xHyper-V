@@ -8,7 +8,7 @@ function Get-TargetResource
         [String]$Name,
 
         [parameter(Mandatory)]
-        [ValidateSet("External","Internal","Private")]
+        [ValidateSet("External","Internal","Private", "NAT")]
         [String]$Type
     )
 
@@ -49,7 +49,7 @@ function Set-TargetResource
         [String]$Name,
 
         [parameter(Mandatory)]
-        [ValidateSet("External","Internal","Private")]
+        [ValidateSet("External","Internal","Private", "NAT")]
         [String]$Type,
 
         [ValidateNotNullOrEmpty()]
@@ -61,7 +61,9 @@ function Set-TargetResource
         [String]$BandwidthReservationMode = "NA",
 
         [ValidateSet("Present","Absent")]
-        [String]$Ensure = "Present"
+        [String]$Ensure = "Present",
+
+        [String]$NATSubnetAddress
     )
     # Check if Hyper-V module is present for Hyper-V cmdlets
     if(!(Get-Module -ListAvailable -Name Hyper-V))
@@ -148,6 +150,13 @@ function Set-TargetResource
                     $parameters["AllowManagementOS"] = $AllowManagementOS
                 }
             }
+
+            if($NATSubnetAddress)
+            {
+                $parameters["NATSubnetAddress"] = $NATSubnetAddress
+                $parameters["SwitchType"] = $Type
+            }
+
             else
             { 
                 $parameters["SwitchType"] = $Type
@@ -175,7 +184,7 @@ function Test-TargetResource
         [String]$Name,
 
         [parameter(Mandatory)]
-        [ValidateSet("External","Internal","Private")]
+        [ValidateSet("External","Internal","Private", "NAT")]
         [String]$Type,
 
         [ValidateNotNullOrEmpty()]
@@ -187,7 +196,9 @@ function Test-TargetResource
         [String]$BandwidthReservationMode = "NA",
 
         [ValidateSet("Present","Absent")]
-        [String]$Ensure = "Present"
+        [String]$Ensure = "Present",
+
+        [String]$NATSubnetAddress
     )
 
     #region input validation
@@ -212,6 +223,11 @@ function Test-TargetResource
     if(($BandwidthReservationMode -ne "NA") -and ([version](Get-WmiObject -Class 'Win32_OperatingSystem').Version -lt [version]'6.2.0'))
     {
         Throw "The BandwidthReservationMode cannot be set on a Hyper-V version lower than 2012"
+    }
+
+    if($Type -eq 'NAT' -and !($NATSubnetAddress))
+    {
+        Throw "For Internal or Private switch type, NetAdapterName should not be specified"
     }
     #endregion
 
